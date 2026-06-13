@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, AppointmentEventType, AppointmentStatus, BusinessStatus, UserRole } from '@prisma/client';
+import { PrismaClient, AppointmentEventType, AppointmentStatus, BusinessMode, BusinessStatus, UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { DateTime } from 'luxon';
 
@@ -7,6 +7,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   await prisma.appointmentEvent.deleteMany();
+  await prisma.serviceRequestProposal.deleteMany();
+  await prisma.serviceRequest.deleteMany();
   await prisma.emailLog.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.paymentRecord.deleteMany();
@@ -47,7 +49,7 @@ async function main() {
     },
   });
 
-  await prisma.userAddress.create({
+  const clientAddress = await prisma.userAddress.create({
     data: {
       userId: client.id,
       label: 'Casa',
@@ -75,36 +77,41 @@ async function main() {
     },
   });
 
-  await prisma.category.createMany({
-    data: [
-      {
-        name: 'Casa e construcao',
-        slug: 'home-services',
-        description: 'Pedreiros, pintores, eletricistas e manutencao.',
-        icon: 'hammer',
-        sortOrder: 20,
-      },
-      {
-        name: 'Restaurantes e delivery',
-        slug: 'food-delivery',
-        description: 'Cardapios, pedidos e retirada ou entrega.',
-        icon: 'utensils',
-        sortOrder: 30,
-      },
-      {
-        name: 'Saude e bem-estar',
-        slug: 'health-wellness',
-        description: 'Clinicas, fisioterapia e cuidado pessoal.',
-        icon: 'heart-pulse',
-        sortOrder: 40,
-      },
-    ],
+  const homeServicesCategory = await prisma.category.create({
+    data: {
+      name: 'Casa e construcao',
+      slug: 'home-services',
+      description: 'Pedreiros, pintores, eletricistas e manutencao.',
+      icon: 'hammer',
+      sortOrder: 20,
+    },
+  });
+
+  await prisma.category.create({
+    data: {
+      name: 'Restaurantes e delivery',
+      slug: 'food-delivery',
+      description: 'Cardapios, pedidos e retirada ou entrega.',
+      icon: 'utensils',
+      sortOrder: 30,
+    },
+  });
+
+  await prisma.category.create({
+    data: {
+      name: 'Saude e bem-estar',
+      slug: 'health-wellness',
+      description: 'Clinicas, fisioterapia e cuidado pessoal.',
+      icon: 'heart-pulse',
+      sortOrder: 40,
+    },
   });
 
   const business = await prisma.business.create({
     data: {
       ownerId: owner.id,
       categoryId: beautyCategory.id,
+      mode: BusinessMode.HYBRID,
       name: 'Studio SLOTY',
       slug: 'studio-sloty',
       description: 'Negocio demo do backend SLOTY',
@@ -253,6 +260,33 @@ async function main() {
         payload: { source: 'seed' },
       },
     ],
+  });
+
+  const serviceRequest = await prisma.serviceRequest.create({
+    data: {
+      clientId: client.id,
+      categoryId: homeServicesCategory.id,
+      addressId: clientAddress.id,
+      title: 'Preciso instalar uma prateleira e revisar uma tomada',
+      description: 'Servico simples em apartamento. Tenho a prateleira, mas preciso de furadeira e avaliacao da tomada.',
+      city: 'Fortaleza',
+      state: 'CE',
+      latitude: -3.7319,
+      longitude: -38.5267,
+      budgetMinCents: 8000,
+      budgetMaxCents: 18000,
+      currency: 'BRL',
+    },
+  });
+
+  await prisma.serviceRequestProposal.create({
+    data: {
+      requestId: serviceRequest.id,
+      businessId: business.id,
+      message: 'Posso avaliar hoje no fim da tarde e confirmar o valor antes de iniciar.',
+      estimatedPriceCents: 15000,
+      estimatedDurationMinutes: 120,
+    },
   });
 
   await prisma.billingCustomer.create({

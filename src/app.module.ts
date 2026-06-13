@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { BusinessesModule } from './businesses/businesses.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ServicesModule } from './services/services.module';
+import { ServiceRequestsModule } from './service-requests/service-requests.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { EmailsModule } from './emails/emails.module';
@@ -43,6 +44,7 @@ import { UploadsModule } from './uploads/uploads.module';
     BusinessesModule,
     CategoriesModule,
     ServicesModule,
+    ServiceRequestsModule,
     AvailabilityModule,
     AppointmentsModule,
     EmailsModule,

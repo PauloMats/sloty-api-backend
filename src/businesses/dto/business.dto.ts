@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { BusinessStatus } from '@prisma/client';
+import { BusinessMode, BusinessStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsEmail,
@@ -98,6 +98,11 @@ export class CreateBusinessDto {
   @IsOptional()
   @IsEnum(BusinessStatus)
   status: BusinessStatus = BusinessStatus.ACTIVE;
+
+  @ApiPropertyOptional({ enum: BusinessMode, default: BusinessMode.SCHEDULED_SERVICE })
+  @IsOptional()
+  @IsEnum(BusinessMode)
+  mode: BusinessMode = BusinessMode.SCHEDULED_SERVICE;
 }
 
 export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {}
