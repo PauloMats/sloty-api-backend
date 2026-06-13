@@ -20,6 +20,8 @@ async function main() {
   await prisma.service.deleteMany();
   await prisma.businessMember.deleteMany();
   await prisma.business.deleteMany();
+  await prisma.category.deleteMany();
+  await prisma.userAddress.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
 
@@ -45,9 +47,64 @@ async function main() {
     },
   });
 
+  await prisma.userAddress.create({
+    data: {
+      userId: client.id,
+      label: 'Casa',
+      recipientName: client.name,
+      phone: client.phone,
+      addressLine1: 'Rua Demo, 100',
+      neighborhood: 'Centro',
+      city: 'Fortaleza',
+      state: 'CE',
+      zipCode: '60000-000',
+      country: 'BR',
+      latitude: -3.7319,
+      longitude: -38.5267,
+      isDefault: true,
+    },
+  });
+
+  const beautyCategory = await prisma.category.create({
+    data: {
+      name: 'Beleza e autocuidado',
+      slug: 'beauty',
+      description: 'Barbearias, saloes, unhas e estetica.',
+      icon: 'scissors',
+      sortOrder: 10,
+    },
+  });
+
+  await prisma.category.createMany({
+    data: [
+      {
+        name: 'Casa e construcao',
+        slug: 'home-services',
+        description: 'Pedreiros, pintores, eletricistas e manutencao.',
+        icon: 'hammer',
+        sortOrder: 20,
+      },
+      {
+        name: 'Restaurantes e delivery',
+        slug: 'food-delivery',
+        description: 'Cardapios, pedidos e retirada ou entrega.',
+        icon: 'utensils',
+        sortOrder: 30,
+      },
+      {
+        name: 'Saude e bem-estar',
+        slug: 'health-wellness',
+        description: 'Clinicas, fisioterapia e cuidado pessoal.',
+        icon: 'heart-pulse',
+        sortOrder: 40,
+      },
+    ],
+  });
+
   const business = await prisma.business.create({
     data: {
       ownerId: owner.id,
+      categoryId: beautyCategory.id,
       name: 'Studio SLOTY',
       slug: 'studio-sloty',
       description: 'Negocio demo do backend SLOTY',
@@ -57,6 +114,8 @@ async function main() {
       city: 'Fortaleza',
       state: 'CE',
       country: 'BR',
+      latitude: -3.735,
+      longitude: -38.49,
       timezone: 'America/Fortaleza',
       status: BusinessStatus.ACTIVE,
     },

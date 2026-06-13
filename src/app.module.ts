@@ -12,6 +12,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { BusinessesModule } from './businesses/businesses.module';
+import { CategoriesModule } from './categories/categories.module';
 import { ServicesModule } from './services/services.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { AppointmentsModule } from './appointments/appointments.module';
@@ -40,6 +41,7 @@ import { UploadsModule } from './uploads/uploads.module';
     AuthModule,
     UsersModule,
     BusinessesModule,
+    CategoriesModule,
     ServicesModule,
     AvailabilityModule,
     AppointmentsModule,

@@ -1,13 +1,17 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { BusinessStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsEmail,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Max,
+  Min,
 } from 'class-validator';
 
 export class CreateBusinessDto {
@@ -30,6 +34,11 @@ export class CreateBusinessDto {
   @IsOptional()
   @IsString()
   category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -92,3 +101,43 @@ export class CreateBusinessDto {
 }
 
 export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {}
+
+export class ListBusinessesQueryDto {
+  @ApiPropertyOptional({ example: 'Fortaleza' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'beauty' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ example: -3.7319 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lat?: number;
+
+  @ApiPropertyOptional({ example: -38.5267 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lng?: number;
+
+  @ApiPropertyOptional({ example: 25, default: 25, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  radiusKm?: number;
+
+  @ApiPropertyOptional({ example: 30, default: 50, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+}

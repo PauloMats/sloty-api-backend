@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
-import { UpdateMeDto } from './dto/user.dto';
+import { CreateUserAddressDto, UpdateMeDto, UpdateUserAddressDto } from './dto/user.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -19,5 +19,40 @@ export class UsersController {
   @Patch('me')
   updateMe(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateMeDto) {
     return this.usersService.updateMe(user.sub, dto);
+  }
+
+  @Get('me/addresses')
+  listAddresses(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.listAddresses(user.sub);
+  }
+
+  @Post('me/addresses')
+  createAddress(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateUserAddressDto) {
+    return this.usersService.createAddress(user.sub, dto);
+  }
+
+  @Patch('me/addresses/:addressId')
+  updateAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('addressId') addressId: string,
+    @Body() dto: UpdateUserAddressDto,
+  ) {
+    return this.usersService.updateAddress(user.sub, addressId, dto);
+  }
+
+  @Patch('me/addresses/:addressId/default')
+  setDefaultAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('addressId') addressId: string,
+  ) {
+    return this.usersService.setDefaultAddress(user.sub, addressId);
+  }
+
+  @Delete('me/addresses/:addressId')
+  deleteAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('addressId') addressId: string,
+  ) {
+    return this.usersService.deleteAddress(user.sub, addressId);
   }
 }

@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import { BusinessesService } from './businesses.service';
-import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
+import { CreateBusinessDto, ListBusinessesQueryDto, UpdateBusinessDto } from './dto/business.dto';
 
 @ApiTags('Businesses')
 @Controller('businesses')
@@ -31,8 +31,8 @@ export class BusinessesController {
 
   @Public()
   @Get()
-  list() {
-    return this.businessesService.list();
+  list(@Query() query: ListBusinessesQueryDto) {
+    return this.businessesService.list(query);
   }
 
   @Public()

@@ -6,7 +6,27 @@ import {
 import { BusinessStatus, Prisma, UserRole } from '@prisma/client';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
+import { CreateBusinessDto, ListBusinessesQueryDto, UpdateBusinessDto } from './dto/business.dto';
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function calculateDistanceKm(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(to.lat - from.lat);
+  const dLng = toRadians(to.lng - from.lng);
+  const lat1 = toRadians(from.lat);
+  const lat2 = toRadians(to.lat);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 @Injectable()
 export class BusinessesService {
@@ -49,12 +69,41 @@ export class BusinessesService {
     });
   }
 
-  list() {
-    return this.prisma.business.findMany({
+  async list(query: ListBusinessesQueryDto = {}) {
+    const where: Prisma.BusinessWhereInput = {
+      status: BusinessStatus.ACTIVE,
+      ...(query.city
+        ? {
+            city: {
+              contains: query.city,
+              mode: 'insensitive',
+            },
+          }
+        : {}),
+      ...(query.category
+        ? {
+            OR: [
+              {
+                category: {
+                  contains: query.category,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                categoryRef: {
+                  slug: query.category,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    const businesses = await this.prisma.business.findMany({
       where: {
-        status: BusinessStatus.ACTIVE,
+        ...where,
       },
       include: {
+        categoryRef: true,
         services: {
           where: { isActive: true },
           orderBy: { createdAt: 'asc' },
@@ -63,13 +112,42 @@ export class BusinessesService {
       orderBy: {
         createdAt: 'desc',
       },
+      take: query.limit ?? 50,
     });
+
+    if (query.lat === undefined || query.lng === undefined) {
+      return businesses;
+    }
+
+    const radiusKm = query.radiusKm ?? 25;
+    return businesses
+      .map((business) => {
+        if (business.latitude === null || business.longitude === null) {
+          return {
+            ...business,
+            distanceKm: null,
+          };
+        }
+
+        return {
+          ...business,
+          distanceKm: Number(
+            calculateDistanceKm(
+              { lat: query.lat as number, lng: query.lng as number },
+              { lat: business.latitude, lng: business.longitude },
+            ).toFixed(2),
+          ),
+        };
+      })
+      .filter((business) => business.distanceKm === null || business.distanceKm <= radiusKm)
+      .sort((left, right) => (left.distanceKm ?? Number.MAX_SAFE_INTEGER) - (right.distanceKm ?? Number.MAX_SAFE_INTEGER));
   }
 
   getById(businessId: string) {
     return this.prisma.business.findUniqueOrThrow({
       where: { id: businessId },
       include: {
+        categoryRef: true,
         services: {
           where: { isActive: true },
         },
@@ -94,6 +172,7 @@ export class BusinessesService {
         state: true,
         zipCode: true,
         country: true,
+        categoryRef: true,
         timezone: true,
         status: true,
         services: {
