@@ -7,6 +7,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   await prisma.appointmentEvent.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
   await prisma.serviceRequestProposal.deleteMany();
   await prisma.serviceRequest.deleteMany();
   await prisma.emailLog.deleteMany();
@@ -287,6 +289,29 @@ async function main() {
       estimatedPriceCents: 15000,
       estimatedDurationMinutes: 120,
     },
+  });
+
+  const conversation = await prisma.conversation.create({
+    data: {
+      clientId: client.id,
+      businessId: business.id,
+      appointmentId: pendingAppointment.id,
+    },
+  });
+
+  await prisma.message.createMany({
+    data: [
+      {
+        conversationId: conversation.id,
+        senderId: client.id,
+        body: 'Oi! Esse horario ainda esta disponivel?',
+      },
+      {
+        conversationId: conversation.id,
+        senderId: owner.id,
+        body: 'Esta sim. Posso confirmar para voce agora.',
+      },
+    ],
   });
 
   await prisma.billingCustomer.create({
