@@ -104,3 +104,25 @@ export class CreateUserAddressDto {
 }
 
 export class UpdateUserAddressDto extends PartialType(CreateUserAddressDto) {}
+
+export class UpdateNotificationPreferencesDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  emailEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  pushEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  whatsappEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  marketingEnabled?: boolean;
+}

@@ -2,7 +2,12 @@ import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/commo
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
-import { CreateUserAddressDto, UpdateMeDto, UpdateUserAddressDto } from './dto/user.dto';
+import {
+  CreateUserAddressDto,
+  UpdateMeDto,
+  UpdateNotificationPreferencesDto,
+  UpdateUserAddressDto,
+} from './dto/user.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -54,5 +59,18 @@ export class UsersController {
     @Param('addressId') addressId: string,
   ) {
     return this.usersService.deleteAddress(user.sub, addressId);
+  }
+
+  @Get('me/notification-preferences')
+  getNotificationPreferences(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.getNotificationPreferences(user.sub);
+  }
+
+  @Patch('me/notification-preferences')
+  updateNotificationPreferences(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateNotificationPreferencesDto,
+  ) {
+    return this.usersService.updateNotificationPreferences(user.sub, dto);
   }
 }

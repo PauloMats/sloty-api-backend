@@ -29,6 +29,7 @@ async function main() {
   await prisma.business.deleteMany();
   await prisma.category.deleteMany();
   await prisma.userAddress.deleteMany();
+  await prisma.userNotificationPreference.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
 
@@ -52,6 +53,13 @@ async function main() {
       phone: '+55 85 99999-2222',
       role: UserRole.CLIENT,
     },
+  });
+
+  await prisma.userNotificationPreference.createMany({
+    data: [
+      { userId: owner.id, emailEnabled: true, pushEnabled: true, whatsappEnabled: false },
+      { userId: client.id, emailEnabled: true, pushEnabled: true, whatsappEnabled: true },
+    ],
   });
 
   const clientAddress = await prisma.userAddress.create({

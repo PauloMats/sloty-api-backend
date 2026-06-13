@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserAddressDto, UpdateMeDto, UpdateUserAddressDto } from './dto/user.dto';
+import {
+  CreateUserAddressDto,
+  UpdateMeDto,
+  UpdateNotificationPreferencesDto,
+  UpdateUserAddressDto,
+} from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -140,5 +145,24 @@ export class UsersService {
     });
 
     return { success: deleted.count > 0 };
+  }
+
+  getNotificationPreferences(userId: string) {
+    return this.prisma.userNotificationPreference.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
+  }
+
+  updateNotificationPreferences(userId: string, dto: UpdateNotificationPreferencesDto) {
+    return this.prisma.userNotificationPreference.upsert({
+      where: { userId },
+      create: {
+        userId,
+        ...dto,
+      },
+      update: dto,
+    });
   }
 }

@@ -85,6 +85,7 @@ enum AppointmentEventType {
 enum NotificationChannel {
   EMAIL
   PUSH
+  WHATSAPP
 }
 
 enum NotificationStatus {
@@ -111,28 +112,41 @@ enum WebhookProvider {
 }
 
 model User {
-  id                  String             @id @default(cuid())
-  name                String
-  email               String             @unique
-  passwordHash        String
-  phone               String?
-  role                UserRole
-  isActive            Boolean            @default(true)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  refreshTokens       RefreshToken[]
-  ownedBusinesses     Business[]         @relation("BusinessOwner")
-  businessMemberships BusinessMember[]
-  clientAppointments  Appointment[]      @relation("AppointmentClient")
-  staffAppointments   Appointment[]      @relation("AppointmentStaff")
-  serviceRequests     ServiceRequest[]
-  conversations       Conversation[]     @relation("ConversationClient")
-  messages            Message[]          @relation("MessageSender")
-  orders              Order[]
-  appointmentEvents   AppointmentEvent[]
-  notifications       Notification[]
-  emailLogs           EmailLog[]
-  addresses           UserAddress[]
+  id                     String                      @id @default(cuid())
+  name                   String
+  email                  String                      @unique
+  passwordHash           String
+  phone                  String?
+  role                   UserRole
+  isActive               Boolean                     @default(true)
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+  refreshTokens          RefreshToken[]
+  ownedBusinesses        Business[]                  @relation("BusinessOwner")
+  businessMemberships    BusinessMember[]
+  clientAppointments     Appointment[]               @relation("AppointmentClient")
+  staffAppointments      Appointment[]               @relation("AppointmentStaff")
+  serviceRequests        ServiceRequest[]
+  conversations          Conversation[]              @relation("ConversationClient")
+  messages               Message[]                   @relation("MessageSender")
+  orders                 Order[]
+  appointmentEvents      AppointmentEvent[]
+  notifications          Notification[]
+  notificationPreference UserNotificationPreference?
+  emailLogs              EmailLog[]
+  addresses              UserAddress[]
+}
+
+model UserNotificationPreference {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  emailEnabled     Boolean  @default(true)
+  pushEnabled      Boolean  @default(true)
+  whatsappEnabled  Boolean  @default(false)
+  marketingEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserAddress {
