@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  IsBoolean,
   IsArray,
   IsDateString,
   IsInt,
@@ -27,6 +28,11 @@ export class WeeklyAvailabilityEntryDto {
   @ApiProperty({ example: '18:00' })
   @Matches(/^\d{2}:\d{2}$/)
   endTime!: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class SetWeeklyAvailabilityDto {

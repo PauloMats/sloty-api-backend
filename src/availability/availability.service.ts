@@ -48,6 +48,7 @@ export class AvailabilityService {
           dayOfWeek: entry.dayOfWeek,
           startTime: entry.startTime,
           endTime: entry.endTime,
+          isActive: entry.isActive ?? true,
         })),
       });
 

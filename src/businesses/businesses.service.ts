@@ -54,6 +54,12 @@ export class BusinessesService {
       where: {
         status: BusinessStatus.ACTIVE,
       },
+      include: {
+        services: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
       orderBy: {
         createdAt: 'desc',
       },
