@@ -56,6 +56,22 @@ enum ConversationStatus {
   ARCHIVED
 }
 
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum FulfillmentType {
+  DELIVERY
+  PICKUP
+}
+
 enum AppointmentEventType {
   CREATED
   CONFIRMED
@@ -112,6 +128,7 @@ model User {
   serviceRequests     ServiceRequest[]
   conversations       Conversation[]     @relation("ConversationClient")
   messages            Message[]          @relation("MessageSender")
+  orders              Order[]
   appointmentEvents   AppointmentEvent[]
   notifications       Notification[]
   emailLogs           EmailLog[]
@@ -138,6 +155,7 @@ model UserAddress {
   updatedAt     DateTime         @updatedAt
   user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   requests      ServiceRequest[]
+  orders        Order[]
 
   @@index([userId])
   @@index([city])
@@ -203,6 +221,8 @@ model Business {
   appointments        Appointment[]
   serviceProposals    ServiceRequestProposal[]
   conversations       Conversation[]
+  menuItems           MenuItem[]
+  orders              Order[]
   emailLogs           EmailLog[]
   billingCustomer     BillingCustomer?
   billingSubscription BillingSubscription?
@@ -329,6 +349,65 @@ model Service {
   appointments        Appointment[]
 
   @@index([businessId])
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  priceCents  Int
+  currency    String      @default("BRL")
+  imageUrl    String?
+  isAvailable Boolean     @default(true)
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+
+  @@index([businessId, isAvailable, sortOrder])
+}
+
+model Order {
+  id               String          @id @default(cuid())
+  businessId       String
+  clientId         String
+  addressId        String?
+  status           OrderStatus     @default(PENDING)
+  fulfillmentType  FulfillmentType @default(DELIVERY)
+  subtotalCents    Int
+  deliveryFeeCents Int             @default(0)
+  totalCents       Int
+  currency         String          @default("BRL")
+  notes            String?
+  acceptedAt       DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  business         Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client           User            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  address          UserAddress?    @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  items            OrderItem[]
+
+  @@index([businessId, status, createdAt])
+  @@index([clientId, createdAt])
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  menuItemId     String
+  nameSnapshot   String
+  unitPriceCents Int
+  quantity       Int
+  notes          String?
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem       MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([menuItemId])
 }
 
 model WeeklyAvailability {

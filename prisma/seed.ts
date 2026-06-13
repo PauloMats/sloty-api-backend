@@ -9,6 +9,9 @@ async function main() {
   await prisma.appointmentEvent.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+  await prisma.menuItem.deleteMany();
   await prisma.serviceRequestProposal.deleteMany();
   await prisma.serviceRequest.deleteMany();
   await prisma.emailLog.deleteMany();
@@ -164,6 +167,28 @@ async function main() {
     },
   });
 
+  const comboMenu = await prisma.menuItem.create({
+    data: {
+      businessId: business.id,
+      name: 'Combo executivo SLOTY',
+      description: 'Prato principal, bebida e sobremesa simples para teste de delivery.',
+      priceCents: 4200,
+      currency: 'BRL',
+      sortOrder: 1,
+    },
+  });
+
+  await prisma.menuItem.create({
+    data: {
+      businessId: business.id,
+      name: 'Suco natural',
+      description: 'Bebida complementar do pedido demo.',
+      priceCents: 900,
+      currency: 'BRL',
+      sortOrder: 2,
+    },
+  });
+
   await prisma.weeklyAvailability.createMany({
     data: [
       { businessId: business.id, dayOfWeek: 1, startTime: '09:00', endTime: '18:00' },
@@ -312,6 +337,29 @@ async function main() {
         body: 'Esta sim. Posso confirmar para voce agora.',
       },
     ],
+  });
+
+  await prisma.order.create({
+    data: {
+      businessId: business.id,
+      clientId: client.id,
+      addressId: clientAddress.id,
+      subtotalCents: comboMenu.priceCents,
+      deliveryFeeCents: 500,
+      totalCents: comboMenu.priceCents + 500,
+      currency: 'BRL',
+      notes: 'Pedido seedado para validar a fila de delivery.',
+      items: {
+        create: [
+          {
+            menuItemId: comboMenu.id,
+            nameSnapshot: comboMenu.name,
+            unitPriceCents: comboMenu.priceCents,
+            quantity: 1,
+          },
+        ],
+      },
+    },
   });
 
   await prisma.billingCustomer.create({
