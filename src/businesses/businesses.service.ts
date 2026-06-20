@@ -6,7 +6,11 @@ import {
 import { BusinessStatus, Prisma, UserRole } from '@prisma/client';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateBusinessDto, ListBusinessesQueryDto, UpdateBusinessDto } from './dto/business.dto';
+import {
+  CreateBusinessDto,
+  ListBusinessesQueryDto,
+  UpdateBusinessDto,
+} from './dto/business.dto';
 
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
@@ -27,6 +31,31 @@ function calculateDistanceKm(
 
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+const PUBLIC_BUSINESS_SELECT = {
+  id: true,
+  categoryId: true,
+  mode: true,
+  name: true,
+  slug: true,
+  description: true,
+  category: true,
+  phone: true,
+  email: true,
+  addressLine1: true,
+  addressLine2: true,
+  city: true,
+  state: true,
+  zipCode: true,
+  country: true,
+  timezone: true,
+  status: true,
+  categoryRef: true,
+  services: {
+    where: { isActive: true },
+    orderBy: { createdAt: 'asc' as const },
+  },
+} satisfies Prisma.BusinessSelect;
 
 @Injectable()
 export class BusinessesService {
@@ -102,12 +131,10 @@ export class BusinessesService {
       where: {
         ...where,
       },
-      include: {
-        categoryRef: true,
-        services: {
-          where: { isActive: true },
-          orderBy: { createdAt: 'asc' },
-        },
+      select: {
+        ...PUBLIC_BUSINESS_SELECT,
+        latitude: true,
+        longitude: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -115,71 +142,54 @@ export class BusinessesService {
       take: query.limit ?? 50,
     });
 
+    const sanitizedBusinesses = businesses.map((business) => {
+      const { latitude, longitude, ...publicBusiness } = business;
+      return { publicBusiness, latitude, longitude };
+    });
+
     if (query.lat === undefined || query.lng === undefined) {
-      return businesses;
+      return sanitizedBusinesses.map(({ publicBusiness }) => publicBusiness);
     }
 
     const radiusKm = query.radiusKm ?? 25;
-    return businesses
-      .map((business) => {
-        if (business.latitude === null || business.longitude === null) {
-          return {
-            ...business,
-            distanceKm: null,
-          };
+    return sanitizedBusinesses
+      .map(({ publicBusiness, latitude, longitude }) => {
+        if (latitude === null || longitude === null) {
+          return { ...publicBusiness, distanceKm: null };
         }
 
         return {
-          ...business,
+          ...publicBusiness,
           distanceKm: Number(
             calculateDistanceKm(
               { lat: query.lat as number, lng: query.lng as number },
-              { lat: business.latitude, lng: business.longitude },
+              { lat: latitude, lng: longitude },
             ).toFixed(2),
           ),
         };
       })
-      .filter((business) => business.distanceKm === null || business.distanceKm <= radiusKm)
-      .sort((left, right) => (left.distanceKm ?? Number.MAX_SAFE_INTEGER) - (right.distanceKm ?? Number.MAX_SAFE_INTEGER));
+      .filter(
+        (business) =>
+          business.distanceKm === null || business.distanceKm <= radiusKm,
+      )
+      .sort(
+        (left, right) =>
+          (left.distanceKm ?? Number.MAX_SAFE_INTEGER) -
+          (right.distanceKm ?? Number.MAX_SAFE_INTEGER),
+      );
   }
 
   getById(businessId: string) {
-    return this.prisma.business.findUniqueOrThrow({
-      where: { id: businessId },
-      include: {
-        categoryRef: true,
-        services: {
-          where: { isActive: true },
-        },
-      },
+    return this.prisma.business.findFirstOrThrow({
+      where: { id: businessId, status: BusinessStatus.ACTIVE },
+      select: PUBLIC_BUSINESS_SELECT,
     });
   }
 
   getPublicById(businessId: string) {
-    return this.prisma.business.findUniqueOrThrow({
-      where: { id: businessId },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        category: true,
-        phone: true,
-        email: true,
-        addressLine1: true,
-        addressLine2: true,
-        city: true,
-        state: true,
-        zipCode: true,
-        country: true,
-        categoryRef: true,
-        timezone: true,
-        status: true,
-        services: {
-          where: { isActive: true },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
+    return this.prisma.business.findFirstOrThrow({
+      where: { id: businessId, status: BusinessStatus.ACTIVE },
+      select: PUBLIC_BUSINESS_SELECT,
     });
   }
 

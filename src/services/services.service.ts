@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessesService } from '../businesses/businesses.service';
-import { CreateCatalogServiceDto, UpdateCatalogServiceDto } from './dto/service.dto';
+import {
+  CreateCatalogServiceDto,
+  UpdateCatalogServiceDto,
+} from './dto/service.dto';
 
 @Injectable()
 export class ServicesService {
@@ -11,7 +14,11 @@ export class ServicesService {
     private readonly businessesService: BusinessesService,
   ) {}
 
-  async create(user: AuthenticatedUser, businessId: string, dto: CreateCatalogServiceDto) {
+  async create(
+    user: AuthenticatedUser,
+    businessId: string,
+    dto: CreateCatalogServiceDto,
+  ) {
     await this.businessesService.assertCanManageBusiness(user, businessId);
     return this.prisma.service.create({
       data: {
@@ -30,7 +37,7 @@ export class ServicesService {
 
   list(businessId: string) {
     return this.prisma.service.findMany({
-      where: { businessId },
+      where: { businessId, isActive: true },
       orderBy: { createdAt: 'asc' },
     });
   }

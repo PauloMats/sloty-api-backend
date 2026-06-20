@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { BusinessesService } from '../businesses/businesses.service';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
@@ -57,7 +61,10 @@ export class ConversationsService {
     const managedBusinessIds = await this.getManagedBusinessIds(user);
     return this.prisma.conversation.findMany({
       where: {
-        OR: [{ clientId: user.sub }, { businessId: { in: managedBusinessIds } }],
+        OR: [
+          { clientId: user.sub },
+          { businessId: { in: managedBusinessIds } },
+        ],
       },
       include: CONVERSATION_INCLUDE,
       orderBy: { updatedAt: 'desc' },
@@ -102,7 +109,11 @@ export class ConversationsService {
     return conversation;
   }
 
-  async sendMessage(user: AuthenticatedUser, conversationId: string, dto: SendMessageDto) {
+  async sendMessage(
+    user: AuthenticatedUser,
+    conversationId: string,
+    dto: SendMessageDto,
+  ) {
     const conversation = await this.getById(user, conversationId);
     const body = dto.body.trim();
 
@@ -139,7 +150,10 @@ export class ConversationsService {
     });
   }
 
-  private async resolveContextClientId(user: AuthenticatedUser, dto: StartConversationDto) {
+  private async resolveContextClientId(
+    user: AuthenticatedUser,
+    dto: StartConversationDto,
+  ) {
     if (dto.appointmentId) {
       const appointment = await this.prisma.appointment.findUniqueOrThrow({
         where: { id: dto.appointmentId },
@@ -153,7 +167,10 @@ export class ConversationsService {
       }
 
       if (appointment.clientId !== user.sub) {
-        await this.businessesService.assertCanManageBusiness(user, dto.businessId);
+        await this.businessesService.assertCanManageBusiness(
+          user,
+          dto.businessId,
+        );
       }
 
       return { clientId: appointment.clientId };
@@ -165,7 +182,10 @@ export class ConversationsService {
       });
 
       if (request.clientId !== user.sub) {
-        await this.businessesService.assertCanManageBusiness(user, dto.businessId);
+        await this.businessesService.assertCanManageBusiness(
+          user,
+          dto.businessId,
+        );
         const proposal = await this.prisma.serviceRequestProposal.findUnique({
           where: {
             requestId_businessId: {
@@ -178,7 +198,8 @@ export class ConversationsService {
         if (!proposal) {
           throw new ForbiddenException({
             code: 'CONVERSATION_REQUIRES_PROPOSAL',
-            message: 'Business must send a proposal before starting a request conversation.',
+            message:
+              'Business must send a proposal before starting a request conversation.',
           });
         }
       }
@@ -198,7 +219,10 @@ export class ConversationsService {
     }
 
     try {
-      await this.businessesService.assertCanManageBusiness(user, conversation.businessId);
+      await this.businessesService.assertCanManageBusiness(
+        user,
+        conversation.businessId,
+      );
     } catch {
       throw new ForbiddenException({
         code: 'CONVERSATION_ACCESS_FORBIDDEN',

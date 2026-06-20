@@ -26,10 +26,32 @@ import {
 } from './dto/appointment.dto';
 
 const APPOINTMENT_INCLUDE = {
-  business: true,
+  business: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      category: true,
+      city: true,
+      state: true,
+      timezone: true,
+    },
+  },
   service: true,
-  client: true,
-  staffUser: true,
+  client: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+    },
+  },
+  staffUser: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
   events: {
     orderBy: {
       createdAt: 'asc' as const,
@@ -73,7 +95,8 @@ export class AppointmentsService {
         if (existingKey.requestHash !== requestHash) {
           throw new ConflictException({
             code: 'IDEMPOTENCY_KEY_REUSED',
-            message: 'Idempotency key was already used with a different payload.',
+            message:
+              'Idempotency key was already used with a different payload.',
           });
         }
 
@@ -101,15 +124,20 @@ export class AppointmentsService {
         });
       }
 
-      const lockDate = DateTime.fromISO(dto.startAt, { zone: 'utc' }).toISODate();
-      await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`${dto.businessId}:${lockDate}`}))`);
-
-      const { service, endAt } = await this.availabilityService.assertSlotAvailable(
-        tx,
-        dto.businessId,
-        dto.serviceId,
-        new Date(dto.startAt),
+      const lockDate = DateTime.fromISO(dto.startAt, {
+        zone: 'utc',
+      }).toISODate();
+      await tx.$queryRaw(
+        Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`${dto.businessId}:${lockDate}`}))`,
       );
+
+      const { service, endAt } =
+        await this.availabilityService.assertSlotAvailable(
+          tx,
+          dto.businessId,
+          dto.serviceId,
+          new Date(dto.startAt),
+        );
 
       const clientId = await this.resolveClientId(tx, user, dto.clientId);
 
@@ -137,7 +165,7 @@ export class AppointmentsService {
             serviceId: service.id,
             startAt: appointmentRecord.startAt.toISOString(),
             endAt: appointmentRecord.endAt.toISOString(),
-          } as Prisma.InputJsonValue,
+          },
         },
       });
 
@@ -156,7 +184,9 @@ export class AppointmentsService {
           },
           data: {
             responseCode: 201,
-            responseBody: JSON.parse(JSON.stringify(fullAppointment)) as Prisma.InputJsonValue,
+            responseBody: JSON.parse(
+              JSON.stringify(fullAppointment),
+            ) as Prisma.InputJsonValue,
           },
         });
       }
@@ -198,11 +228,18 @@ export class AppointmentsService {
     return appointment;
   }
 
-  async cancel(user: AuthenticatedUser, appointmentId: string, dto: CancelAppointmentDto) {
+  async cancel(
+    user: AuthenticatedUser,
+    appointmentId: string,
+    dto: CancelAppointmentDto,
+  ) {
     const appointment = await this.getById(user, appointmentId);
 
     if (appointment.clientId !== user.sub) {
-      await this.businessesService.assertCanManageBusiness(user, appointment.businessId);
+      await this.businessesService.assertCanManageBusiness(
+        user,
+        appointment.businessId,
+      );
     }
 
     const updated = await this.updateStatus(
@@ -219,13 +256,18 @@ export class AppointmentsService {
       },
     );
 
-    await this.eventEmitter.emitAsync('appointment.cancelled', { appointmentId: updated.id });
+    await this.eventEmitter.emitAsync('appointment.cancelled', {
+      appointmentId: updated.id,
+    });
     return updated;
   }
 
   async confirm(user: AuthenticatedUser, appointmentId: string) {
     const appointment = await this.getById(user, appointmentId);
-    await this.businessesService.assertCanManageBusiness(user, appointment.businessId);
+    await this.businessesService.assertCanManageBusiness(
+      user,
+      appointment.businessId,
+    );
 
     const updated = await this.updateStatus(
       appointmentId,
@@ -236,13 +278,18 @@ export class AppointmentsService {
         confirmedAt: new Date(),
       },
     );
-    await this.eventEmitter.emitAsync('appointment.confirmed', { appointmentId: updated.id });
+    await this.eventEmitter.emitAsync('appointment.confirmed', {
+      appointmentId: updated.id,
+    });
     return updated;
   }
 
   async complete(user: AuthenticatedUser, appointmentId: string) {
     const appointment = await this.getById(user, appointmentId);
-    await this.businessesService.assertCanManageBusiness(user, appointment.businessId);
+    await this.businessesService.assertCanManageBusiness(
+      user,
+      appointment.businessId,
+    );
 
     return this.updateStatus(
       appointmentId,
@@ -257,7 +304,10 @@ export class AppointmentsService {
 
   async noShow(user: AuthenticatedUser, appointmentId: string) {
     const appointment = await this.getById(user, appointmentId);
-    await this.businessesService.assertCanManageBusiness(user, appointment.businessId);
+    await this.businessesService.assertCanManageBusiness(
+      user,
+      appointment.businessId,
+    );
 
     return this.updateStatus(
       appointmentId,
@@ -293,7 +343,11 @@ export class AppointmentsService {
     });
   }
 
-  calendar(user: AuthenticatedUser, businessId: string, query: AppointmentRangeQueryDto) {
+  calendar(
+    user: AuthenticatedUser,
+    businessId: string,
+    query: AppointmentRangeQueryDto,
+  ) {
     return this.listBusinessAppointments(user, businessId, query);
   }
 
@@ -310,14 +364,17 @@ export class AppointmentsService {
         where: { id: appointmentId },
       });
 
-      if (current.status === AppointmentStatus.CANCELLED && status !== AppointmentStatus.CANCELLED) {
+      if (
+        current.status === AppointmentStatus.CANCELLED &&
+        status !== AppointmentStatus.CANCELLED
+      ) {
         throw new BadRequestException({
           code: 'APPOINTMENT_FINALIZED',
           message: 'Cancelled appointments cannot transition to a new status.',
         });
       }
 
-      const appointment = await tx.appointment.update({
+      await tx.appointment.update({
         where: { id: appointmentId },
         data: {
           status,
@@ -388,7 +445,10 @@ export class AppointmentsService {
     }
 
     try {
-      await this.businessesService.assertCanManageBusiness(user, appointment.businessId);
+      await this.businessesService.assertCanManageBusiness(
+        user,
+        appointment.businessId,
+      );
     } catch {
       throw new ForbiddenException({
         code: 'APPOINTMENT_ACCESS_FORBIDDEN',

@@ -19,11 +19,12 @@ export class AppointmentEventsListener {
   @OnEvent('appointment.created')
   async onAppointmentCreated(event: AppointmentDomainEvent) {
     const appointment = await this.loadAppointment(event.appointmentId);
-    const clientNotification = await this.notificationsService.createEmailNotification(
-      appointment.clientId,
-      'appointment-created-client',
-      { appointmentId: appointment.id },
-    );
+    const clientNotification =
+      await this.notificationsService.createEmailNotification(
+        appointment.clientId,
+        'appointment-created-client',
+        { appointmentId: appointment.id },
+      );
     await this.emailsService.queueAppointmentEmail({
       appointmentId: appointment.id,
       businessId: appointment.businessId,
@@ -54,17 +55,21 @@ export class AppointmentEventsListener {
       });
     }
 
-    await this.emailsService.scheduleAppointmentReminders(appointment.id, appointment.startAt);
+    await this.emailsService.scheduleAppointmentReminders(
+      appointment.id,
+      appointment.startAt,
+    );
   }
 
   @OnEvent('appointment.confirmed')
   async onAppointmentConfirmed(event: AppointmentDomainEvent) {
     const appointment = await this.loadAppointment(event.appointmentId);
-    const notification = await this.notificationsService.createEmailNotification(
-      appointment.clientId,
-      'appointment-confirmed-client',
-      { appointmentId: appointment.id },
-    );
+    const notification =
+      await this.notificationsService.createEmailNotification(
+        appointment.clientId,
+        'appointment-confirmed-client',
+        { appointmentId: appointment.id },
+      );
     await this.emailsService.queueAppointmentEmail({
       appointmentId: appointment.id,
       businessId: appointment.businessId,
@@ -84,11 +89,12 @@ export class AppointmentEventsListener {
   @OnEvent('appointment.cancelled')
   async onAppointmentCancelled(event: AppointmentDomainEvent) {
     const appointment = await this.loadAppointment(event.appointmentId);
-    const notification = await this.notificationsService.createEmailNotification(
-      appointment.clientId,
-      'appointment-cancelled-client',
-      { appointmentId: appointment.id },
-    );
+    const notification =
+      await this.notificationsService.createEmailNotification(
+        appointment.clientId,
+        'appointment-cancelled-client',
+        { appointmentId: appointment.id },
+      );
     await this.emailsService.queueAppointmentEmail({
       appointmentId: appointment.id,
       businessId: appointment.businessId,
@@ -108,10 +114,30 @@ export class AppointmentEventsListener {
   private loadAppointment(appointmentId: string) {
     return this.prisma.appointment.findUniqueOrThrow({
       where: { id: appointmentId },
-      include: {
-        business: true,
-        service: true,
-        client: true,
+      select: {
+        id: true,
+        businessId: true,
+        clientId: true,
+        startAt: true,
+        endAt: true,
+        business: {
+          select: {
+            name: true,
+            email: true,
+            timezone: true,
+          },
+        },
+        service: {
+          select: {
+            name: true,
+          },
+        },
+        client: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
     });
   }

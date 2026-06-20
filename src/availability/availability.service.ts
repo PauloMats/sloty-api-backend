@@ -15,7 +15,6 @@ import { BusinessesService } from '../businesses/businesses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   calculateSlots,
-  SlotCalculatorAvailabilityEntry,
   SlotCalculatorOccupiedInterval,
 } from './slot-calculator';
 import {
@@ -97,7 +96,11 @@ export class AvailabilityService {
     });
   }
 
-  async deleteClosure(user: AuthenticatedUser, businessId: string, closureId: string) {
+  async deleteClosure(
+    user: AuthenticatedUser,
+    businessId: string,
+    closureId: string,
+  ) {
     await this.businessesService.assertCanManageBusiness(user, businessId);
     await this.prisma.businessClosure.deleteMany({
       where: { id: closureId, businessId },
@@ -111,7 +114,12 @@ export class AvailabilityService {
     serviceId: string,
     query: AvailabilitySlotsQueryDto,
   ) {
-    return this.buildSlotsForDate(this.prisma, businessId, serviceId, query.date);
+    return this.buildSlotsForDate(
+      this.prisma,
+      businessId,
+      serviceId,
+      query.date,
+    );
   }
 
   async getAvailableRange(
@@ -129,15 +137,22 @@ export class AvailabilityService {
       });
     }
 
-    const results: Array<{ date: string; slots: Awaited<ReturnType<AvailabilityService['getAvailableSlots']>> }> =
-      [];
+    const results: Array<{
+      date: string;
+      slots: Awaited<ReturnType<AvailabilityService['getAvailableSlots']>>;
+    }> = [];
     let cursor = start;
 
     while (cursor <= end) {
       const date = cursor.toISODate() as string;
       results.push({
         date,
-        slots: await this.buildSlotsForDate(this.prisma, businessId, serviceId, date),
+        slots: await this.buildSlotsForDate(
+          this.prisma,
+          businessId,
+          serviceId,
+          date,
+        ),
       });
       cursor = cursor.plus({ days: 1 });
     }
@@ -181,8 +196,15 @@ export class AvailabilityService {
       .setZone(business.timezone)
       .toISODate();
 
-    const slots = await this.buildSlotsForDate(prisma, businessId, serviceId, dateInBusinessTimezone as string);
-    const matchedSlot = slots.find((slot) => new Date(slot.startAt).getTime() === startAt.getTime());
+    const slots = await this.buildSlotsForDate(
+      prisma,
+      businessId,
+      serviceId,
+      dateInBusinessTimezone as string,
+    );
+    const matchedSlot = slots.find(
+      (slot) => new Date(slot.startAt).getTime() === startAt.getTime(),
+    );
 
     if (!matchedSlot) {
       throw new ConflictException({
@@ -222,7 +244,9 @@ export class AvailabilityService {
       });
     }
 
-    const localDayStart = DateTime.fromISO(date, { zone: business.timezone }).startOf('day');
+    const localDayStart = DateTime.fromISO(date, {
+      zone: business.timezone,
+    }).startOf('day');
     const localDayEnd = localDayStart.endOf('day');
     const dayStartUtc = localDayStart.toUTC().toJSDate();
     const dayEndUtc = localDayEnd.toUTC().toJSDate();
@@ -263,7 +287,7 @@ export class AvailabilityService {
         bufferBeforeMinutes: service.bufferBeforeMinutes,
         bufferAfterMinutes: service.bufferAfterMinutes,
       },
-      weeklyAvailability: weeklyAvailability as SlotCalculatorAvailabilityEntry[],
+      weeklyAvailability: weeklyAvailability,
       closures,
       occupiedIntervals,
     });

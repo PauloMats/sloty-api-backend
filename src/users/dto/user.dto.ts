@@ -1,6 +1,7 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  Equals,
   IsBoolean,
   IsNumber,
   IsOptional,
@@ -9,6 +10,13 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+
+export class DeleteMyAccountDto {
+  @ApiPropertyOptional({ example: 'DELETE' })
+  @IsString()
+  @Equals('DELETE')
+  confirmation!: string;
+}
 
 export class UpdateMeDto {
   @ApiPropertyOptional({ example: 'Ana Maria Costa' })

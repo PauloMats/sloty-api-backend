@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import {
   BusinessMode,
-  Prisma,
   ServiceProposalStatus,
   ServiceRequestStatus,
 } from '@prisma/client';
@@ -44,12 +43,26 @@ const REQUEST_INCLUDE = {
   },
 };
 
-const PUBLIC_REQUEST_INCLUDE = {
-  category: true,
-  client: {
+const PUBLIC_REQUEST_SELECT = {
+  id: true,
+  categoryId: true,
+  title: true,
+  description: true,
+  city: true,
+  state: true,
+  budgetMinCents: true,
+  budgetMaxCents: true,
+  currency: true,
+  status: true,
+  expiresAt: true,
+  createdAt: true,
+  updatedAt: true,
+  category: {
     select: {
       id: true,
       name: true,
+      slug: true,
+      icon: true,
     },
   },
   proposals: {
@@ -69,7 +82,24 @@ export class ServiceRequestsService {
     private readonly businessesService: BusinessesService,
   ) {}
 
-  create(user: AuthenticatedUser, dto: CreateServiceRequestDto) {
+  async create(user: AuthenticatedUser, dto: CreateServiceRequestDto) {
+    if (dto.addressId) {
+      const address = await this.prisma.userAddress.findFirst({
+        where: {
+          id: dto.addressId,
+          userId: user.sub,
+        },
+        select: { id: true },
+      });
+
+      if (!address) {
+        throw new BadRequestException({
+          code: 'SERVICE_REQUEST_ADDRESS_INVALID',
+          message: 'Address does not belong to the current user.',
+        });
+      }
+    }
+
     return this.prisma.serviceRequest.create({
       data: {
         clientId: user.sub,
@@ -102,7 +132,7 @@ export class ServiceRequestsService {
           : undefined,
         categoryId: query.categoryId,
       },
-      include: PUBLIC_REQUEST_INCLUDE,
+      select: PUBLIC_REQUEST_SELECT,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -203,7 +233,11 @@ export class ServiceRequestsService {
     });
   }
 
-  async acceptProposal(user: AuthenticatedUser, requestId: string, proposalId: string) {
+  async acceptProposal(
+    user: AuthenticatedUser,
+    requestId: string,
+    proposalId: string,
+  ) {
     const request = await this.prisma.serviceRequest.findUnique({
       where: { id: requestId },
     });

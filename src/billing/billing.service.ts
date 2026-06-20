@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus, PaymentType } from '@prisma/client';
@@ -29,11 +30,17 @@ export class BillingService {
     private readonly businessesService: BusinessesService,
   ) {
     const apiKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    this.stripe = isStripePlaceholderKey(apiKey) ? null : new Stripe(apiKey ?? '');
+    this.stripe = isStripePlaceholderKey(apiKey)
+      ? null
+      : new Stripe(apiKey ?? '');
   }
 
-  async createCheckoutSession(user: AuthenticatedUser, dto: CreateSubscriptionCheckoutDto) {
-    const businessId = dto.businessId ?? (await this.businessesService.getMyBusiness(user)).id;
+  async createCheckoutSession(
+    user: AuthenticatedUser,
+    dto: CreateSubscriptionCheckoutDto,
+  ) {
+    const businessId =
+      dto.businessId ?? (await this.businessesService.getMyBusiness(user)).id;
     await this.businessesService.assertCanManageBusiness(user, businessId);
 
     const business = await this.prisma.business.findUnique({
@@ -47,21 +54,30 @@ export class BillingService {
     }
 
     const priceId =
-      dto.priceId ?? this.configService.getOrThrow<string>('STRIPE_PRICE_ID_PRO');
+      dto.priceId ??
+      this.configService.getOrThrow<string>('STRIPE_PRICE_ID_PRO');
     const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
 
-    if (
-      !this.stripe ||
-      this.configService.get<string>('NODE_ENV') === 'test' ||
-      priceId === 'price_xxx'
-    ) {
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    if (nodeEnv === 'test' || nodeEnv === 'development') {
       return {
         sessionId: `cs_test_${businessId}`,
         url: `${frontendUrl}/billing/success?session_id=cs_test_${businessId}`,
       };
     }
 
-    const customer = await this.ensureCustomer(businessId, business.email ?? undefined, business.name);
+    if (!this.stripe || priceId === 'price_xxx') {
+      throw new ServiceUnavailableException({
+        code: 'STRIPE_NOT_CONFIGURED',
+        message: 'Stripe billing is not configured.',
+      });
+    }
+
+    const customer = await this.ensureCustomer(
+      businessId,
+      business.email ?? undefined,
+      business.name,
+    );
 
     const session = await this.stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -73,7 +89,8 @@ export class BillingService {
         },
       ],
       success_url:
-        dto.successUrl ?? `${frontendUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        dto.successUrl ??
+        `${frontendUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: dto.cancelUrl ?? `${frontendUrl}/billing/cancel`,
       client_reference_id: businessId,
       metadata: {
@@ -97,15 +114,15 @@ export class BillingService {
   async processStripeWebhook(event: Stripe.Event) {
     switch (event.type) {
       case 'checkout.session.completed':
-        await this.handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        await this.handleCheckoutCompleted(event.data.object);
         break;
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionChanged(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionChanged(event.data.object);
         break;
       case 'invoice.payment_succeeded':
       case 'invoice.payment_failed':
-        await this.handleInvoiceEvent(event.data.object as Stripe.Invoice, event.type);
+        await this.handleInvoiceEvent(event.data.object, event.type);
         break;
       default:
         break;
@@ -117,7 +134,10 @@ export class BillingService {
       where: { businessId },
     });
 
-    if (!subscription || !['active', 'trialing'].includes(subscription.status)) {
+    if (
+      !subscription ||
+      !['active', 'trialing'].includes(subscription.status)
+    ) {
       throw new ForbiddenException({
         code: 'SUBSCRIPTION_INACTIVE',
         message: 'Business subscription is not active.',
@@ -125,7 +145,11 @@ export class BillingService {
     }
   }
 
-  private async ensureCustomer(businessId: string, email?: string, name?: string) {
+  private async ensureCustomer(
+    businessId: string,
+    email?: string,
+    name?: string,
+  ) {
     const existing = await this.prisma.billingCustomer.findUnique({
       where: { businessId },
     });
@@ -160,13 +184,16 @@ export class BillingService {
   }
 
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-    const businessId = session.metadata?.businessId ?? session.client_reference_id;
+    const businessId =
+      session.metadata?.businessId ?? session.client_reference_id;
     if (!businessId) {
       return;
     }
 
     const stripeCustomerId =
-      typeof session.customer === 'string' ? session.customer : session.customer?.id;
+      typeof session.customer === 'string'
+        ? session.customer
+        : session.customer?.id;
     const stripeSubscriptionId =
       typeof session.subscription === 'string'
         ? session.subscription
@@ -192,7 +219,9 @@ export class BillingService {
       create: {
         businessId,
         stripeSubscriptionId,
-        stripePriceId: this.configService.getOrThrow<string>('STRIPE_PRICE_ID_PRO'),
+        stripePriceId: this.configService.getOrThrow<string>(
+          'STRIPE_PRICE_ID_PRO',
+        ),
         status: 'active',
       },
       update: {
@@ -222,23 +251,37 @@ export class BillingService {
         stripeSubscriptionId: subscription.id,
         stripePriceId: subscription.items.data[0]?.price.id ?? '',
         status: subscription.status,
-        currentPeriodStart: new Date(subscription.items.data[0]?.current_period_start ?? Date.now()),
-        currentPeriodEnd: new Date(subscription.items.data[0]?.current_period_end ?? Date.now()),
+        currentPeriodStart: new Date(
+          subscription.items.data[0]?.current_period_start ?? Date.now(),
+        ),
+        currentPeriodEnd: new Date(
+          subscription.items.data[0]?.current_period_end ?? Date.now(),
+        ),
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       },
       update: {
         stripeSubscriptionId: subscription.id,
         stripePriceId: subscription.items.data[0]?.price.id ?? '',
         status: subscription.status,
-        currentPeriodStart: new Date(subscription.items.data[0]?.current_period_start ?? Date.now()),
-        currentPeriodEnd: new Date(subscription.items.data[0]?.current_period_end ?? Date.now()),
+        currentPeriodStart: new Date(
+          subscription.items.data[0]?.current_period_start ?? Date.now(),
+        ),
+        currentPeriodEnd: new Date(
+          subscription.items.data[0]?.current_period_end ?? Date.now(),
+        ),
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       },
     });
   }
 
-  private async handleInvoiceEvent(invoice: Stripe.Invoice, type: Stripe.Event.Type) {
-    const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  private async handleInvoiceEvent(
+    invoice: Stripe.Invoice,
+    type: Stripe.Event.Type,
+  ) {
+    const customerId =
+      typeof invoice.customer === 'string'
+        ? invoice.customer
+        : invoice.customer?.id;
     if (!customerId) {
       return;
     }

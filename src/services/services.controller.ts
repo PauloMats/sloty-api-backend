@@ -1,9 +1,20 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
-import { CreateCatalogServiceDto, UpdateCatalogServiceDto } from './dto/service.dto';
+import {
+  CreateCatalogServiceDto,
+  UpdateCatalogServiceDto,
+} from './dto/service.dto';
 import { ServicesService } from './services.service';
 
 @ApiTags('Services')

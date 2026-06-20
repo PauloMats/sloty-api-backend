@@ -1,9 +1,19 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import {
   CreateUserAddressDto,
+  DeleteMyAccountDto,
   UpdateMeDto,
   UpdateNotificationPreferencesDto,
   UpdateUserAddressDto,
@@ -26,13 +36,30 @@ export class UsersController {
     return this.usersService.updateMe(user.sub, dto);
   }
 
+  @Get('me/export')
+  exportMyData(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.exportMyData(user.sub);
+  }
+
+  @Delete('me')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  deleteMyAccount(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: DeleteMyAccountDto,
+  ) {
+    return this.usersService.anonymizeMyAccount(user.sub, dto);
+  }
+
   @Get('me/addresses')
   listAddresses(@CurrentUser() user: AuthenticatedUser) {
     return this.usersService.listAddresses(user.sub);
   }
 
   @Post('me/addresses')
-  createAddress(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateUserAddressDto) {
+  createAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateUserAddressDto,
+  ) {
     return this.usersService.createAddress(user.sub, dto);
   }
 

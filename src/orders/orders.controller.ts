@@ -3,7 +3,11 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
-import { CreateMenuItemDto, CreateOrderDto, UpdateOrderStatusDto } from './dto/order.dto';
+import {
+  CreateMenuItemDto,
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+} from './dto/order.dto';
 import { OrdersService } from './orders.service';
 
 @ApiTags('Orders')
@@ -29,7 +33,10 @@ export class OrdersController {
 
   @Post('orders')
   @ApiBearerAuth()
-  createOrder(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateOrderDto) {
+  createOrder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateOrderDto,
+  ) {
     return this.ordersService.createOrder(user, dto);
   }
 

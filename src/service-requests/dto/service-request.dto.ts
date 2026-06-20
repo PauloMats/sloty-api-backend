@@ -106,7 +106,10 @@ export class CreateServiceProposalDto {
   @IsString()
   businessId!: string;
 
-  @ApiProperty({ example: 'Consigo atender amanha de manha. Levo os materiais complementares.' })
+  @ApiProperty({
+    example:
+      'Consigo atender amanha de manha. Levo os materiais complementares.',
+  })
   @IsString()
   @MaxLength(1200)
   message!: string;

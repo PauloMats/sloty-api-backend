@@ -1,5 +1,12 @@
 import 'dotenv/config';
-import { PrismaClient, AppointmentEventType, AppointmentStatus, BusinessMode, BusinessStatus, UserRole } from '@prisma/client';
+import {
+  PrismaClient,
+  AppointmentEventType,
+  AppointmentStatus,
+  BusinessMode,
+  BusinessStatus,
+  UserRole,
+} from '@prisma/client';
 import * as argon2 from 'argon2';
 import { DateTime } from 'luxon';
 
@@ -57,8 +64,18 @@ async function main() {
 
   await prisma.userNotificationPreference.createMany({
     data: [
-      { userId: owner.id, emailEnabled: true, pushEnabled: true, whatsappEnabled: false },
-      { userId: client.id, emailEnabled: true, pushEnabled: true, whatsappEnabled: true },
+      {
+        userId: owner.id,
+        emailEnabled: true,
+        pushEnabled: true,
+        whatsappEnabled: false,
+      },
+      {
+        userId: client.id,
+        emailEnabled: true,
+        pushEnabled: true,
+        whatsappEnabled: true,
+      },
     ],
   });
 
@@ -179,7 +196,8 @@ async function main() {
     data: {
       businessId: business.id,
       name: 'Combo executivo SLOTY',
-      description: 'Prato principal, bebida e sobremesa simples para teste de delivery.',
+      description:
+        'Prato principal, bebida e sobremesa simples para teste de delivery.',
       priceCents: 4200,
       currency: 'BRL',
       sortOrder: 1,
@@ -199,22 +217,52 @@ async function main() {
 
   await prisma.weeklyAvailability.createMany({
     data: [
-      { businessId: business.id, dayOfWeek: 1, startTime: '09:00', endTime: '18:00' },
-      { businessId: business.id, dayOfWeek: 2, startTime: '09:00', endTime: '18:00' },
-      { businessId: business.id, dayOfWeek: 3, startTime: '09:00', endTime: '18:00' },
-      { businessId: business.id, dayOfWeek: 4, startTime: '09:00', endTime: '18:00' },
-      { businessId: business.id, dayOfWeek: 5, startTime: '09:00', endTime: '18:00' },
+      {
+        businessId: business.id,
+        dayOfWeek: 1,
+        startTime: '09:00',
+        endTime: '18:00',
+      },
+      {
+        businessId: business.id,
+        dayOfWeek: 2,
+        startTime: '09:00',
+        endTime: '18:00',
+      },
+      {
+        businessId: business.id,
+        dayOfWeek: 3,
+        startTime: '09:00',
+        endTime: '18:00',
+      },
+      {
+        businessId: business.id,
+        dayOfWeek: 4,
+        startTime: '09:00',
+        endTime: '18:00',
+      },
+      {
+        businessId: business.id,
+        dayOfWeek: 5,
+        startTime: '09:00',
+        endTime: '18:00',
+      },
     ],
   });
 
-  const tomorrowLocal = DateTime.now().setZone(business.timezone).plus({ days: 1 }).set({
-    hour: 10,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
+  const tomorrowLocal = DateTime.now()
+    .setZone(business.timezone)
+    .plus({ days: 1 })
+    .set({
+      hour: 10,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+    });
   const tomorrowLocalSecond = tomorrowLocal.plus({ hours: 3 });
-  const closureStart = tomorrowLocal.plus({ days: 2 }).set({ hour: 12, minute: 0 });
+  const closureStart = tomorrowLocal
+    .plus({ days: 2 })
+    .set({ hour: 12, minute: 0 });
   const closureEnd = closureStart.plus({ hours: 2 });
 
   await prisma.businessClosure.create({
@@ -232,7 +280,10 @@ async function main() {
       serviceId: haircut.id,
       clientId: client.id,
       startAt: tomorrowLocal.toUTC().toJSDate(),
-      endAt: tomorrowLocal.plus({ minutes: haircut.durationMinutes }).toUTC().toJSDate(),
+      endAt: tomorrowLocal
+        .plus({ minutes: haircut.durationMinutes })
+        .toUTC()
+        .toJSDate(),
       status: AppointmentStatus.CONFIRMED,
       source: 'seed',
       confirmedAt: new Date(),
@@ -245,7 +296,10 @@ async function main() {
       serviceId: beard.id,
       clientId: client.id,
       startAt: tomorrowLocalSecond.toUTC().toJSDate(),
-      endAt: tomorrowLocalSecond.plus({ minutes: beard.durationMinutes }).toUTC().toJSDate(),
+      endAt: tomorrowLocalSecond
+        .plus({ minutes: beard.durationMinutes })
+        .toUTC()
+        .toJSDate(),
       status: AppointmentStatus.PENDING,
       source: 'seed',
     },
@@ -303,7 +357,8 @@ async function main() {
       categoryId: homeServicesCategory.id,
       addressId: clientAddress.id,
       title: 'Preciso instalar uma prateleira e revisar uma tomada',
-      description: 'Servico simples em apartamento. Tenho a prateleira, mas preciso de furadeira e avaliacao da tomada.',
+      description:
+        'Servico simples em apartamento. Tenho a prateleira, mas preciso de furadeira e avaliacao da tomada.',
       city: 'Fortaleza',
       state: 'CE',
       latitude: -3.7319,
@@ -318,7 +373,8 @@ async function main() {
     data: {
       requestId: serviceRequest.id,
       businessId: business.id,
-      message: 'Posso avaliar hoje no fim da tarde e confirmar o valor antes de iniciar.',
+      message:
+        'Posso avaliar hoje no fim da tarde e confirmar o valor antes de iniciar.',
       estimatedPriceCents: 15000,
       estimatedDurationMinutes: 120,
     },
@@ -400,7 +456,7 @@ async function main() {
 }
 
 main()
-  .catch(async (error) => {
+  .catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
   })

@@ -1,6 +1,9 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { EmailsService, AppointmentEmailContext } from '../emails/emails.service';
+import {
+  EmailsService,
+  AppointmentEmailContext,
+} from '../emails/emails.service';
 
 @Processor('emails')
 export class EmailsProcessor extends WorkerHost {

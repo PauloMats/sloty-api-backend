@@ -17,7 +17,10 @@ export class ConversationsController {
   }
 
   @Post()
-  start(@CurrentUser() user: AuthenticatedUser, @Body() dto: StartConversationDto) {
+  start(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: StartConversationDto,
+  ) {
     return this.conversationsService.start(user, dto);
   }
 

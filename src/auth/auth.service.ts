@@ -27,7 +27,9 @@ export class AuthService {
   ) {}
 
   async registerClient(dto: RegisterClientDto) {
-    const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existingUser) {
       throw new ConflictException({
         code: 'EMAIL_ALREADY_IN_USE',
@@ -54,7 +56,9 @@ export class AuthService {
   }
 
   async registerBusiness(dto: RegisterBusinessDto) {
-    const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existingUser) {
       throw new ConflictException({
         code: 'EMAIL_ALREADY_IN_USE',
@@ -144,7 +148,7 @@ export class AuthService {
 
   async refresh(dto: RefreshTokenDto) {
     const payload = await this.verifyRefreshToken(dto.refreshToken);
-    const storedToken = await this.prisma.refreshToken.findFirst({
+    const activeTokens = await this.prisma.refreshToken.findMany({
       where: {
         userId: payload.sub,
         revokedAt: null,
@@ -152,16 +156,12 @@ export class AuthService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    const storedToken = await this.findMatchingRefreshToken(
+      activeTokens,
+      dto.refreshToken,
+    );
 
     if (!storedToken) {
-      throw new UnauthorizedException({
-        code: 'REFRESH_TOKEN_INVALID',
-        message: 'Refresh token is invalid.',
-      });
-    }
-
-    const validToken = await argon2.verify(storedToken.tokenHash, dto.refreshToken);
-    if (!validToken) {
       throw new UnauthorizedException({
         code: 'REFRESH_TOKEN_INVALID',
         message: 'Refresh token is invalid.',
@@ -171,6 +171,13 @@ export class AuthService {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: payload.sub },
     });
+
+    if (!user.isActive) {
+      throw new UnauthorizedException({
+        code: 'ACCOUNT_INACTIVE',
+        message: 'Account is inactive.',
+      });
+    }
 
     await this.prisma.refreshToken.update({
       where: { id: storedToken.id },
@@ -193,7 +200,10 @@ export class AuthService {
       },
     });
 
-    const matchingToken = await this.findMatchingRefreshToken(tokens, dto.refreshToken);
+    const matchingToken = await this.findMatchingRefreshToken(
+      tokens,
+      dto.refreshToken,
+    );
     if (matchingToken) {
       await this.prisma.refreshToken.update({
         where: { id: matchingToken.id },
@@ -219,15 +229,21 @@ export class AuthService {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_EXPIRES') as never,
+        expiresIn: this.configService.getOrThrow<string>(
+          'JWT_ACCESS_EXPIRES',
+        ) as never,
       }),
       this.jwtService.signAsync(payload, {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.getOrThrow<string>('JWT_REFRESH_EXPIRES') as never,
+        expiresIn: this.configService.getOrThrow<string>(
+          'JWT_REFRESH_EXPIRES',
+        ) as never,
       }),
     ]);
 
-    const decodedRefreshToken = this.jwtService.decode(refreshToken) as { exp?: number } | null;
+    const decodedRefreshToken = this.jwtService.decode<{ exp?: number }>(
+      refreshToken,
+    );
     if (!decodedRefreshToken?.exp) {
       throw new BadRequestException({
         code: 'REFRESH_TOKEN_ERROR',
@@ -249,7 +265,9 @@ export class AuthService {
     };
   }
 
-  private sanitizeUser<T extends Prisma.UserGetPayload<Record<string, never>>>(user: T) {
+  private sanitizeUser<T extends Prisma.UserGetPayload<Record<string, never>>>(
+    user: T,
+  ) {
     return {
       id: user.id,
       name: user.name,
@@ -264,12 +282,13 @@ export class AuthService {
 
   private async verifyRefreshToken(refreshToken: string) {
     try {
-      return await this.jwtService.verifyAsync<{ sub: string; email: string; role: UserRole }>(
-        refreshToken,
-        {
-          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        },
-      );
+      return await this.jwtService.verifyAsync<{
+        sub: string;
+        email: string;
+        role: UserRole;
+      }>(refreshToken, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      });
     } catch {
       throw new UnauthorizedException({
         code: 'REFRESH_TOKEN_INVALID',

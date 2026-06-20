@@ -1,6 +1,9 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from '@fastify/helmet';
 import { AppModule } from './app.module';
@@ -10,7 +13,18 @@ import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter({
+    bodyLimit: 1_048_576,
     logger: {
+      redact: {
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers["stripe-signature"]',
+          'req.headers["svix-signature"]',
+          'res.headers["set-cookie"]',
+        ],
+        censor: '[REDACTED]',
+      },
       transport:
         process.env.NODE_ENV === 'development'
           ? {
@@ -25,12 +39,18 @@ async function bootstrap() {
     },
   });
 
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
-    rawBody: true,
-  });
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    adapter,
+    {
+      rawBody: true,
+    },
+  );
   const configService = app.get(ConfigService);
 
-  await app.register(helmet);
+  await app.register(helmet, {
+    contentSecurityPolicy: false,
+  });
   app.setGlobalPrefix('v1');
   app.useGlobalPipes(
     new ValidationPipe({
@@ -41,7 +61,8 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  const swaggerEnabled = configService.get<string>('SWAGGER_ENABLED') === 'true';
+  const swaggerEnabled =
+    configService.get<string>('SWAGGER_ENABLED') === 'true';
 
   if (swaggerEnabled) {
     const config = new DocumentBuilder()
@@ -66,9 +87,19 @@ async function bootstrap() {
       .map((value) => value.trim())
       .filter(Boolean) || [];
 
+  const nodeEnv = configService.get<string>('NODE_ENV');
+  if (nodeEnv === 'production' && corsOrigins.length === 0) {
+    throw new Error(
+      'CORS_ORIGINS must contain at least one trusted origin in production.',
+    );
+  }
+
   app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : true,
+    origin: corsOrigins.length > 0 ? corsOrigins : nodeEnv === 'development',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+    maxAge: 86_400,
   });
   app.enableShutdownHooks();
   app.get(PrismaService).enableShutdownHooks(app);
@@ -76,4 +107,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port, '0.0.0.0');
 }
-bootstrap();
+void bootstrap().catch((error: unknown) => {
+  console.error('Failed to start SLOTY API.', error);
+  process.exitCode = 1;
+});

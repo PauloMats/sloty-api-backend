@@ -1,5 +1,9 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import Stripe from 'stripe';
@@ -26,7 +30,9 @@ export class WebhooksService {
     @InjectQueue('webhooks') private readonly webhooksQueue: Queue,
   ) {
     const apiKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    this.stripe = isStripePlaceholderKey(apiKey) ? null : new Stripe(apiKey ?? '');
+    this.stripe = isStripePlaceholderKey(apiKey)
+      ? null
+      : new Stripe(apiKey ?? '');
   }
 
   async receiveStripeWebhook(request: AuthenticatedRequest, body: unknown) {
@@ -80,11 +86,15 @@ export class WebhooksService {
     });
 
     if (event.provider === WebhookProvider.STRIPE) {
-      await this.billingService.processStripeWebhook(event.payload as unknown as Stripe.Event);
+      await this.billingService.processStripeWebhook(
+        event.payload as unknown as Stripe.Event,
+      );
     }
 
     if (event.provider === WebhookProvider.RESEND) {
-      await this.emailsService.processResendWebhook(event.payload as unknown as ResendWebhookPayload);
+      await this.emailsService.processResendWebhook(
+        event.payload as unknown as ResendWebhookPayload,
+      );
     }
 
     await this.prisma.webhookEvent.update({
@@ -96,49 +106,91 @@ export class WebhooksService {
   }
 
   private verifyStripeWebhook(request: AuthenticatedRequest, body: unknown) {
-    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
     const signature = request.headers['stripe-signature'];
 
-    if (
-      this.stripe &&
-      webhookSecret &&
-      signature &&
-      request.rawBody &&
-      this.configService.get<string>('NODE_ENV') !== 'test'
-    ) {
+    if (this.configService.get<string>('NODE_ENV') === 'test') {
+      return body as Stripe.Event;
+    }
+
+    if (!this.stripe || !webhookSecret) {
+      throw new ServiceUnavailableException({
+        code: 'STRIPE_WEBHOOK_NOT_CONFIGURED',
+        message: 'Stripe webhook verification is not configured.',
+      });
+    }
+
+    if (!signature || !request.rawBody) {
+      throw new UnauthorizedException({
+        code: 'STRIPE_WEBHOOK_SIGNATURE_MISSING',
+        message: 'Stripe webhook signature is missing.',
+      });
+    }
+
+    try {
       return this.stripe.webhooks.constructEvent(
-        Buffer.isBuffer(request.rawBody) ? request.rawBody : Buffer.from(request.rawBody),
+        Buffer.isBuffer(request.rawBody)
+          ? request.rawBody
+          : Buffer.from(request.rawBody),
         signature,
         webhookSecret,
       );
+    } catch {
+      throw new UnauthorizedException({
+        code: 'STRIPE_WEBHOOK_SIGNATURE_INVALID',
+        message: 'Stripe webhook signature is invalid.',
+      });
     }
-
-    return body as Stripe.Event;
   }
 
   private verifyResendWebhook(request: AuthenticatedRequest, body: unknown) {
-    const webhookSecret = this.configService.get<string>('RESEND_WEBHOOK_SECRET');
+    const webhookSecret = this.configService.get<string>(
+      'RESEND_WEBHOOK_SECRET',
+    );
+
+    if (this.configService.get<string>('NODE_ENV') === 'test') {
+      return body as ResendWebhookPayload;
+    }
+
+    if (!webhookSecret) {
+      throw new ServiceUnavailableException({
+        code: 'RESEND_WEBHOOK_NOT_CONFIGURED',
+        message: 'Resend webhook verification is not configured.',
+      });
+    }
 
     if (
-      webhookSecret &&
-      request.rawBody &&
-      request.headers['svix-id'] &&
-      request.headers['svix-signature'] &&
-      request.headers['svix-timestamp'] &&
-      this.configService.get<string>('NODE_ENV') !== 'test'
+      !request.rawBody ||
+      !request.headers['svix-id'] ||
+      !request.headers['svix-signature'] ||
+      !request.headers['svix-timestamp']
     ) {
+      throw new UnauthorizedException({
+        code: 'RESEND_WEBHOOK_SIGNATURE_MISSING',
+        message: 'Resend webhook signature headers are missing.',
+      });
+    }
+
+    try {
       const webhook = new Webhook(webhookSecret);
       return webhook.verify(
-        Buffer.isBuffer(request.rawBody) ? request.rawBody.toString('utf-8') : String(request.rawBody),
+        Buffer.isBuffer(request.rawBody)
+          ? request.rawBody.toString('utf-8')
+          : String(request.rawBody),
         {
           'svix-id': String(request.headers['svix-id']),
           'svix-signature': String(request.headers['svix-signature']),
           'svix-timestamp': String(request.headers['svix-timestamp']),
         },
       ) as ResendWebhookPayload;
+    } catch {
+      throw new UnauthorizedException({
+        code: 'RESEND_WEBHOOK_SIGNATURE_INVALID',
+        message: 'Resend webhook signature is invalid.',
+      });
     }
-
-    return body as ResendWebhookPayload;
   }
 
   private async persistWebhook(

@@ -5,8 +5,13 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "packageManager": "npm@11.12.1",
   "scripts": {
-    "build": "pnpm prisma:generate && nest build",
+    "build": "npm run prisma:generate && nest build",
+    "postinstall": "prisma generate",
     "format": "prettier --write \"{src,prisma,test}/**/*.{ts,js,json,md,yml,yaml}\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -18,16 +23,17 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "test": "pnpm test:unit && pnpm test:e2e",
+    "test": "npm run test:unit && npm run test:e2e",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage --runInBand",
     "test:unit": "jest --config ./test/jest-unit.json --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand"
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
+    "test:smoke": "npm run build && node scripts/smoke-test.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",
     "@fastify/helmet": "^13.0.2",
-    "@fastify/static": "^8.2.0",
+    "@fastify/static": "^9.1.3",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.11",
     "@nestjs/config": "^4.0.2",
@@ -84,8 +90,8 @@
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.0"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+  "overrides": {
+    "js-yaml": "4.2.0"
   },
   "jest": {
     "moduleFileExtensions": [

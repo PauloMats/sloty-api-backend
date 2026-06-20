@@ -1,5 +1,9 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { DateTime } from 'luxon';
@@ -94,7 +98,9 @@ export class EmailsService {
   }
 
   async sendAppointmentEmail(payload: AppointmentEmailContext) {
-    const localStart = DateTime.fromISO(payload.appointmentStartAt, { zone: 'utc' })
+    const localStart = DateTime.fromISO(payload.appointmentStartAt, {
+      zone: 'utc',
+    })
       .setZone(payload.appointmentTimezone)
       .toFormat("dd/LL/yyyy 'as' HH:mm");
     const localEnd = DateTime.fromISO(payload.appointmentEndAt, { zone: 'utc' })
@@ -108,7 +114,8 @@ export class EmailsService {
       clientName: payload.clientName,
     });
 
-    if (!this.resend || this.configService.get<string>('NODE_ENV') === 'test') {
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    if (nodeEnv === 'test' || nodeEnv === 'development') {
       return this.prisma.emailLog.create({
         data: {
           businessId: payload.businessId,
@@ -120,6 +127,13 @@ export class EmailsService {
           subject: template.subject,
           status: 'SENT',
         },
+      });
+    }
+
+    if (!this.resend) {
+      throw new ServiceUnavailableException({
+        code: 'RESEND_NOT_CONFIGURED',
+        message: 'Transactional email is not configured.',
       });
     }
 
@@ -145,7 +159,10 @@ export class EmailsService {
         },
       });
     } catch (error) {
-      this.logger.error('Failed to send email.', error instanceof Error ? error.stack : undefined);
+      this.logger.error(
+        'Failed to send email.',
+        error instanceof Error ? error.stack : undefined,
+      );
       return this.prisma.emailLog.create({
         data: {
           businessId: payload.businessId,
@@ -155,19 +172,42 @@ export class EmailsService {
           toEmail: payload.toEmail,
           subject: template.subject,
           status: 'FAILED',
-          errorMessage: error instanceof Error ? error.message : 'Unknown email error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown email error',
         },
       });
     }
   }
 
-  async sendReminder(appointmentId: string, template: AppointmentEmailTemplate) {
+  async sendReminder(
+    appointmentId: string,
+    template: AppointmentEmailTemplate,
+  ) {
     const appointment = await this.prisma.appointment.findUniqueOrThrow({
       where: { id: appointmentId },
-      include: {
-        business: true,
-        service: true,
-        client: true,
+      select: {
+        id: true,
+        businessId: true,
+        clientId: true,
+        startAt: true,
+        endAt: true,
+        business: {
+          select: {
+            name: true,
+            timezone: true,
+          },
+        },
+        service: {
+          select: {
+            name: true,
+          },
+        },
+        client: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 

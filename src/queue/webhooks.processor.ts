@@ -13,7 +13,10 @@ export class WebhooksProcessor extends WorkerHost {
   }
 
   async process(job: Job<WebhookJobPayload>) {
-    if (job.name === 'process-stripe-webhook' || job.name === 'process-resend-webhook') {
+    if (
+      job.name === 'process-stripe-webhook' ||
+      job.name === 'process-resend-webhook'
+    ) {
       await this.webhooksService.processWebhook(job.data.webhookEventId);
     }
   }

@@ -15,7 +15,10 @@ export class RemindersProcessor extends WorkerHost {
 
   async process(job: Job<ReminderJobPayload>) {
     if (job.name === 'send-reminder') {
-      await this.emailsService.sendReminder(job.data.appointmentId, job.data.template);
+      await this.emailsService.sendReminder(
+        job.data.appointmentId,
+        job.data.template,
+      );
     }
   }
 }

@@ -51,4 +51,6 @@ export class CreateCatalogServiceDto {
   isActive?: boolean;
 }
 
-export class UpdateCatalogServiceDto extends PartialType(CreateCatalogServiceDto) {}
+export class UpdateCatalogServiceDto extends PartialType(
+  CreateCatalogServiceDto,
+) {}

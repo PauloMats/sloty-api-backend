@@ -60,7 +60,11 @@ describe('calculateSlots', () => {
       ],
     });
 
-    expect(slots.map((slot) => slot.startAt)).not.toContain('2026-04-13T12:00:00.000Z');
-    expect(slots.map((slot) => slot.startAt)).not.toContain('2026-04-13T14:00:00.000Z');
+    expect(slots.map((slot) => slot.startAt)).not.toContain(
+      '2026-04-13T12:00:00.000Z',
+    );
+    expect(slots.map((slot) => slot.startAt)).not.toContain(
+      '2026-04-13T14:00:00.000Z',
+    );
   });
 });

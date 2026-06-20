@@ -1,10 +1,22 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import { BusinessesService } from './businesses.service';
-import { CreateBusinessDto, ListBusinessesQueryDto, UpdateBusinessDto } from './dto/business.dto';
+import {
+  CreateBusinessDto,
+  ListBusinessesQueryDto,
+  UpdateBusinessDto,
+} from './dto/business.dto';
 
 @ApiTags('Businesses')
 @Controller('businesses')
@@ -13,7 +25,10 @@ export class BusinessesController {
 
   @Post()
   @ApiBearerAuth()
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateBusinessDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateBusinessDto,
+  ) {
     return this.businessesService.create(user, dto);
   }
 
@@ -25,7 +40,10 @@ export class BusinessesController {
 
   @Patch('me')
   @ApiBearerAuth()
-  updateMe(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateBusinessDto) {
+  updateMe(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateBusinessDto,
+  ) {
     return this.businessesService.updateMyBusiness(user, dto);
   }
 

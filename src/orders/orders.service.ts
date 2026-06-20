@@ -1,9 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { BusinessMode, OrderStatus } from '@prisma/client';
 import { BusinessesService } from '../businesses/businesses.service';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateMenuItemDto, CreateOrderDto, UpdateOrderStatusDto } from './dto/order.dto';
+import {
+  CreateMenuItemDto,
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+} from './dto/order.dto';
 
 const ORDER_INCLUDE = {
   business: true,
@@ -37,7 +45,11 @@ export class OrdersService {
     });
   }
 
-  async createMenuItem(user: AuthenticatedUser, businessId: string, dto: CreateMenuItemDto) {
+  async createMenuItem(
+    user: AuthenticatedUser,
+    businessId: string,
+    dto: CreateMenuItemDto,
+  ) {
     await this.businessesService.assertCanManageBusiness(user, businessId);
     return this.prisma.menuItem.create({
       data: {
@@ -55,11 +67,38 @@ export class OrdersService {
       where: { id: dto.businessId },
     });
 
-    if (business.mode !== BusinessMode.DELIVERY_ORDER && business.mode !== BusinessMode.HYBRID) {
+    if (
+      business.mode !== BusinessMode.DELIVERY_ORDER &&
+      business.mode !== BusinessMode.HYBRID
+    ) {
       throw new BadRequestException({
         code: 'BUSINESS_MODE_INCOMPATIBLE',
         message: 'Business must support delivery orders.',
       });
+    }
+
+    if (dto.fulfillmentType !== 'PICKUP') {
+      if (!dto.addressId) {
+        throw new BadRequestException({
+          code: 'DELIVERY_ADDRESS_REQUIRED',
+          message: 'Delivery orders require an address.',
+        });
+      }
+
+      const address = await this.prisma.userAddress.findFirst({
+        where: {
+          id: dto.addressId,
+          userId: user.sub,
+        },
+        select: { id: true },
+      });
+
+      if (!address) {
+        throw new BadRequestException({
+          code: 'DELIVERY_ADDRESS_INVALID',
+          message: 'Delivery address does not belong to the current user.',
+        });
+      }
     }
 
     const menuItems = await this.prisma.menuItem.findMany({
@@ -71,7 +110,9 @@ export class OrdersService {
     });
     const menuById = new Map(menuItems.map((item) => [item.id, item]));
 
-    if (menuById.size !== new Set(dto.items.map((item) => item.menuItemId)).size) {
+    if (
+      menuById.size !== new Set(dto.items.map((item) => item.menuItemId)).size
+    ) {
       throw new BadRequestException({
         code: 'MENU_ITEM_UNAVAILABLE',
         message: 'One or more menu items are unavailable.',
@@ -138,17 +179,32 @@ export class OrdersService {
   ) {
     await this.businessesService.assertCanManageBusiness(user, businessId);
 
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, businessId },
+      select: { id: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException({
+        code: 'ORDER_NOT_FOUND',
+        message: 'Order not found for this business.',
+      });
+    }
+
     return this.prisma.order.update({
-      where: { id: orderId },
+      where: { id: order.id },
       data: {
         status: dto.status,
         acceptedAt:
-          dto.status === OrderStatus.ACCEPTED || dto.status === OrderStatus.PREPARING
+          dto.status === OrderStatus.ACCEPTED ||
+          dto.status === OrderStatus.PREPARING
             ? new Date()
             : undefined,
-        completedAt: dto.status === OrderStatus.COMPLETED ? new Date() : undefined,
+        completedAt:
+          dto.status === OrderStatus.COMPLETED ? new Date() : undefined,
         cancelledAt:
-          dto.status === OrderStatus.CANCELLED || dto.status === OrderStatus.REJECTED
+          dto.status === OrderStatus.CANCELLED ||
+          dto.status === OrderStatus.REJECTED
             ? new Date()
             : undefined,
       },

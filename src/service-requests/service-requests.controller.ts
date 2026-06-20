@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -13,11 +21,16 @@ import { ServiceRequestsService } from './service-requests.service';
 @ApiTags('Service Requests')
 @Controller('service-requests')
 export class ServiceRequestsController {
-  constructor(private readonly serviceRequestsService: ServiceRequestsService) {}
+  constructor(
+    private readonly serviceRequestsService: ServiceRequestsService,
+  ) {}
 
   @Post()
   @ApiBearerAuth()
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateServiceRequestDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateServiceRequestDto,
+  ) {
     return this.serviceRequestsService.create(user, dto);
   }
 
@@ -35,7 +48,10 @@ export class ServiceRequestsController {
 
   @Get(':requestId')
   @ApiBearerAuth()
-  getById(@CurrentUser() user: AuthenticatedUser, @Param('requestId') requestId: string) {
+  getById(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('requestId') requestId: string,
+  ) {
     return this.serviceRequestsService.getById(user, requestId);
   }
 
@@ -56,6 +72,10 @@ export class ServiceRequestsController {
     @Param('requestId') requestId: string,
     @Param('proposalId') proposalId: string,
   ) {
-    return this.serviceRequestsService.acceptProposal(user, requestId, proposalId);
+    return this.serviceRequestsService.acceptProposal(
+      user,
+      requestId,
+      proposalId,
+    );
   }
 }

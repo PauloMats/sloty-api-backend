@@ -32,7 +32,11 @@ export class AvailabilityController {
     @Param('businessId') businessId: string,
     @Body() dto: SetWeeklyAvailabilityDto,
   ) {
-    return this.availabilityService.setWeeklyAvailability(user, businessId, dto);
+    return this.availabilityService.setWeeklyAvailability(
+      user,
+      businessId,
+      dto,
+    );
   }
 
   @Get('businesses/:businessId/availability/weekly')
@@ -74,7 +78,11 @@ export class AvailabilityController {
     @Param('serviceId') serviceId: string,
     @Query() query: AvailabilitySlotsQueryDto,
   ) {
-    return this.availabilityService.getAvailableSlots(businessId, serviceId, query);
+    return this.availabilityService.getAvailableSlots(
+      businessId,
+      serviceId,
+      query,
+    );
   }
 
   @Public()
@@ -84,6 +92,10 @@ export class AvailabilityController {
     @Param('serviceId') serviceId: string,
     @Query() query: AvailabilityRangeQueryDto,
   ) {
-    return this.availabilityService.getAvailableRange(businessId, serviceId, query);
+    return this.availabilityService.getAvailableRange(
+      businessId,
+      serviceId,
+      query,
+    );
   }
 }

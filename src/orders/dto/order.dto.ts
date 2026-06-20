@@ -63,7 +63,10 @@ export class CreateOrderDto {
   @IsString()
   addressId?: string;
 
-  @ApiPropertyOptional({ enum: FulfillmentType, default: FulfillmentType.DELIVERY })
+  @ApiPropertyOptional({
+    enum: FulfillmentType,
+    default: FulfillmentType.DELIVERY,
+  })
   @IsOptional()
   @IsEnum(FulfillmentType)
   fulfillmentType?: FulfillmentType;

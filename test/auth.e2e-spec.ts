@@ -36,7 +36,11 @@ describe('AuthController (e2e)', () => {
         password: 'StrongPass123!',
       })
       .expect(201)
-      .expect(({ body }) => {
+      .expect((response) => {
+        const body = response.body as {
+          user: { id: string };
+          tokens: { accessToken: string };
+        };
         expect(body.user.id).toBe('user_1');
         expect(body.tokens.accessToken).toBe('access');
       });

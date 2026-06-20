@@ -99,7 +99,10 @@ export class CreateBusinessDto {
   @IsEnum(BusinessStatus)
   status: BusinessStatus = BusinessStatus.ACTIVE;
 
-  @ApiPropertyOptional({ enum: BusinessMode, default: BusinessMode.SCHEDULED_SERVICE })
+  @ApiPropertyOptional({
+    enum: BusinessMode,
+    default: BusinessMode.SCHEDULED_SERVICE,
+  })
   @IsOptional()
   @IsEnum(BusinessMode)
   mode: BusinessMode = BusinessMode.SCHEDULED_SERVICE;

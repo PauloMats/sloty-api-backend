@@ -6,7 +6,11 @@ import { PrismaService } from '../prisma/prisma.service';
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  createEmailNotification(userId: string, template: string, payload: Record<string, unknown>) {
+  createEmailNotification(
+    userId: string,
+    template: string,
+    payload: Record<string, unknown>,
+  ) {
     return this.prisma.notification.create({
       data: {
         userId,

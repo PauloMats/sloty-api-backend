@@ -27,9 +27,12 @@ describe('AvailabilityController (e2e)', () => {
     });
 
     await request(app.getHttpServer())
-      .get('/v1/availability/businesses/biz_1/services/svc_1/slots?date=2026-04-14')
+      .get(
+        '/v1/availability/businesses/biz_1/services/svc_1/slots?date=2026-04-14',
+      )
       .expect(200)
-      .expect(({ body }) => {
+      .expect((response) => {
+        const body = response.body as Array<{ startAt: string }>;
         expect(body).toHaveLength(1);
         expect(body[0].startAt).toBe('2026-04-14T15:00:00.000Z');
       });

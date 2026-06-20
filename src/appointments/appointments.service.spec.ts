@@ -1,4 +1,8 @@
-import { AppointmentEventType, AppointmentStatus, UserRole } from '@prisma/client';
+import {
+  AppointmentEventType,
+  AppointmentStatus,
+  UserRole,
+} from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConflictException } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
@@ -19,8 +23,9 @@ describe('AppointmentsService', () => {
     const businessesService = {
       assertCanManageBusiness: jest.fn(),
     };
+    const emitAsync = jest.fn();
     const eventEmitter = {
-      emitAsync: jest.fn(),
+      emitAsync,
     } as unknown as EventEmitter2;
 
     const service = new AppointmentsService(
@@ -35,7 +40,7 @@ describe('AppointmentsService', () => {
       prisma,
       availabilityService,
       businessesService,
-      eventEmitter,
+      emitAsync,
     };
   };
 
@@ -72,7 +77,7 @@ describe('AppointmentsService', () => {
   });
 
   it('creates an appointment inside a transaction and emits an internal event', async () => {
-    const { service, prisma, availabilityService, eventEmitter } = createService();
+    const { service, prisma, availabilityService, emitAsync } = createService();
     prisma.idempotencyKey.findUnique.mockResolvedValue(null);
 
     const createdAppointment = {
@@ -83,8 +88,18 @@ describe('AppointmentsService', () => {
       startAt: new Date('2026-04-14T15:00:00.000Z'),
       endAt: new Date('2026-04-14T15:45:00.000Z'),
       status: AppointmentStatus.PENDING,
-      business: { id: 'biz_1', name: 'Studio SLOTY', timezone: 'America/Fortaleza' },
-      service: { id: 'svc_1', name: 'Corte', durationMinutes: 45, bufferBeforeMinutes: 0, bufferAfterMinutes: 0 },
+      business: {
+        id: 'biz_1',
+        name: 'Studio SLOTY',
+        timezone: 'America/Fortaleza',
+      },
+      service: {
+        id: 'svc_1',
+        name: 'Corte',
+        durationMinutes: 45,
+        bufferBeforeMinutes: 0,
+        bufferAfterMinutes: 0,
+      },
       client: { id: 'client_1', name: 'Julia', email: 'client@example.com' },
       staffUser: null,
       events: [],
@@ -108,8 +123,8 @@ describe('AppointmentsService', () => {
       },
     };
 
-    prisma.$transaction.mockImplementation(async (callback: (input: typeof tx) => Promise<unknown>) =>
-      callback(tx),
+    prisma.$transaction.mockImplementation(
+      async (callback: (input: typeof tx) => Promise<unknown>) => callback(tx),
     );
     availabilityService.assertSlotAvailable.mockResolvedValue({
       service: { id: 'svc_1' },
@@ -131,14 +146,19 @@ describe('AppointmentsService', () => {
     );
 
     expect(tx.appointment.create).toHaveBeenCalled();
-    expect(tx.appointmentEvent.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          type: AppointmentEventType.CREATED,
-        }),
-      }),
-    );
-    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('appointment.created', {
+    expect(tx.appointmentEvent.create).toHaveBeenCalledWith({
+      data: {
+        appointmentId: 'appt_1',
+        type: AppointmentEventType.CREATED,
+        actorUserId: 'client_1',
+        payload: {
+          serviceId: 'svc_1',
+          startAt: '2026-04-14T15:00:00.000Z',
+          endAt: '2026-04-14T15:45:00.000Z',
+        },
+      },
+    });
+    expect(emitAsync).toHaveBeenCalledWith('appointment.created', {
       appointmentId: 'appt_1',
     });
     expect(result).toEqual(createdAppointment);

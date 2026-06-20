@@ -31,7 +31,8 @@ describe('AppointmentsController (e2e)', () => {
         startAt: '2026-04-14T15:00:00.000Z',
       })
       .expect(201)
-      .expect(({ body }) => {
+      .expect((response) => {
+        const body = response.body as { id: string };
         expect(body.id).toBe('appt_1');
       });
 

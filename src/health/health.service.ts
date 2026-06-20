@@ -9,7 +9,7 @@ export class HealthService {
     private readonly redisService: RedisService,
   ) {}
 
-  async health() {
+  health() {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
